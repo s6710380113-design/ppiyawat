@@ -1,0 +1,8 @@
+{
+  "name": "คลังปัญญา - แพลตฟอร์มแบ่งปันความรู้เพื่อการศึกษา",
+  "description": "เว็บไซต์รวบรวมและแบ่งปันสื่อการเรียนรู้ แหล่งค้นคว้าความรู้สำหรับนักเรียน นักศึกษา และครูอาจารย์ เชื่อมต่อ Cloud Firestore",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,138 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 's6710380113@pkru.ac.th' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderator'])
+      );
+    }
+
+    // Validation for User creation
+    function isValidUserCreate(data) {
+      return data.uid == request.auth.uid
+        && data.email is string && data.email.size() <= 200
+        && data.displayName is string && data.displayName.size() <= 100
+        && (data.role == 'member' || request.auth.token.email == 's6710380113@pkru.ac.th')
+        && data.status == 'active';
+    }
+
+    function isValidUserSelfUpdate(data) {
+      return data.uid == request.auth.uid
+        && data.displayName is string && data.displayName.size() <= 100;
+    }
+
+    // Validation for Resources
+    function isValidResource(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.description is string && data.description.size() <= 5000
+        && data.category is string && data.category.size() <= 100
+        && data.educationLevel is string && data.educationLevel.size() <= 100
+        && data.mediaType in ['pdf', 'video', 'website', 'document', 'slides']
+        && data.url is string && data.url.size() <= 2000
+        && data.authorId is string && data.authorId.size() <= 128
+        && data.authorName is string && data.authorName.size() <= 100
+        && data.status in ['published', 'hidden', 'archived'];
+    }
+
+    // Validation for Favorites
+    function isValidFavorite(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.resourceId is string && data.resourceId.size() <= 128
+        && data.resourceTitle is string && data.resourceTitle.size() <= 200;
+    }
+
+    // Validation for Reports
+    function isValidReport(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.resourceId is string && data.resourceId.size() <= 128
+        && data.reporterId == request.auth.uid
+        && data.reason in ['broken_link', 'copyright', 'inappropriate', 'inaccurate', 'spam', 'other']
+        && data.status in ['pending', 'resolved', 'dismissed'];
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUserCreate(incoming());
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'institution', 'educationLevel', 'updatedAt']) && isValidUserSelfUpdate(incoming()))
+        ||
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'status', 'displayName', 'photoURL', 'bio', 'institution', 'educationLevel', 'updatedAt']))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // --- Resources Collection ---
+    match /resources/{resourceId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && incoming().authorId == request.auth.uid && isValidResource(incoming());
+      allow update: if isSignedIn() && (
+        (existing().authorId == request.auth.uid && incoming().authorId == existing().authorId && isValidResource(incoming()))
+        ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['viewsCount']) && incoming().viewsCount is number && incoming().viewsCount >= 0)
+        ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount']) && incoming().likesCount is number && incoming().likesCount >= 0)
+        ||
+        (isAdmin() && isValidResource(incoming()))
+      );
+      allow delete: if isSignedIn() && (existing().authorId == request.auth.uid || isAdmin());
+    }
+
+    // --- Favorites Collection ---
+    match /favorites/{favoriteId} {
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidFavorite(incoming());
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // --- Reports Collection ---
+    match /reports/{reportId} {
+      allow create: if isSignedIn() && incoming().reporterId == request.auth.uid && isValidReport(incoming());
+      allow get, list: if isAdmin();
+      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+
+    // --- Moderation Logs Collection ---
+    match /moderationLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && incoming().moderatorId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // --- Global Settings Collection ---
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

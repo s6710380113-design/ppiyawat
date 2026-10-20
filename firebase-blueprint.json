@@ -1,0 +1,139 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access control",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 200 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "photoURL": { "type": "string", "maxLength": 1000 },
+        "role": { "type": "string", "enum": ["member", "moderator", "admin"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "bio": { "type": "string", "maxLength": 500 },
+        "institution": { "type": "string", "maxLength": 200 },
+        "educationLevel": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "displayName", "role", "status", "createdAt"]
+    },
+    "Resource": {
+      "title": "Resource",
+      "description": "Educational resource item uploaded or shared by students or teachers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200, "minLength": 1 },
+        "description": { "type": "string", "maxLength": 5000, "minLength": 1 },
+        "category": { "type": "string", "maxLength": 100 },
+        "educationLevel": { "type": "string", "maxLength": 100 },
+        "mediaType": { "type": "string", "enum": ["pdf", "video", "website", "document", "slides"] },
+        "url": { "type": "string", "maxLength": 2000, "minLength": 1 },
+        "thumbnailUrl": { "type": "string", "maxLength": 2000 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 100 },
+        "authorEmail": { "type": "string", "maxLength": 200 },
+        "authorRole": { "type": "string", "maxLength": 50 },
+        "viewsCount": { "type": "number" },
+        "likesCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["published", "hidden", "archived"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "description", "category", "educationLevel", "mediaType", "url", "authorId", "authorName", "status", "createdAt"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "User bookmarked favorite resources",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "resourceId": { "type": "string", "maxLength": 128 },
+        "resourceTitle": { "type": "string", "maxLength": 200 },
+        "resourceCategory": { "type": "string", "maxLength": 100 },
+        "resourceMediaType": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "resourceId", "resourceTitle", "createdAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Community report against inappropriate or broken resources",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "resourceId": { "type": "string", "maxLength": 128 },
+        "resourceTitle": { "type": "string", "maxLength": 200 },
+        "reporterId": { "type": "string", "maxLength": 128 },
+        "reporterEmail": { "type": "string", "maxLength": 200 },
+        "reason": { "type": "string", "enum": ["broken_link", "copyright", "inappropriate", "inaccurate", "spam", "other"] },
+        "details": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "resourceId", "resourceTitle", "reporterId", "reason", "status", "createdAt"]
+    },
+    "ModerationLog": {
+      "title": "ModerationLog",
+      "description": "Administrative actions audit record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "action": { "type": "string", "maxLength": 100 },
+        "targetType": { "type": "string", "enum": ["resource", "user", "report", "settings"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "moderatorId": { "type": "string", "maxLength": 128 },
+        "moderatorEmail": { "type": "string", "maxLength": 200 },
+        "note": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "action", "targetType", "targetId", "moderatorId", "createdAt"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global website settings and managed categories",
+      "type": "object",
+      "properties": {
+        "siteName": { "type": "string", "maxLength": 100 },
+        "siteDescription": { "type": "string", "maxLength": 500 },
+        "announcement": { "type": "string", "maxLength": 1000 },
+        "announcementActive": { "type": "boolean" },
+        "categories": { "type": "array" },
+        "educationLevels": { "type": "array" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["siteName", "siteDescription"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and RBAC role state"
+    },
+    "/resources/{resourceId}": {
+      "schema": { "$ref": "#/entities/Resource" },
+      "description": "Educational learning resources and media"
+    },
+    "/favorites/{favoriteId}": {
+      "schema": { "$ref": "#/entities/Favorite" },
+      "description": "Saved favorite resources bookmarked by users"
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/Report" },
+      "description": "Reports filed by users regarding improper content or broken links"
+    },
+    "/moderationLogs/{logId}": {
+      "schema": { "$ref": "#/entities/ModerationLog" },
+      "description": "Audit trail logs for administrative and moderation actions"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/Settings" },
+      "description": "Global website configuration and managed categories"
+    }
+  }
+}
